@@ -36,21 +36,26 @@ function App() {
 
     const handleLogin = async (e) => {
         e.preventDefault();
-        
+      
         try {
-            const response = await axios.post('/login', { email, password });
-            
-            if (response.data.success) {
-                setName(response.data.name || 'User');
-                setIsVerified(true);
-                setMessage('Login successful!');
-            } else {
-                setMessage(response.data.message || 'Login failed');
-            }
+          const { data, error } = await supabase.auth.signInWithPassword({
+            email,
+            password
+          });
+      
+          if (error) throw error;
+      
+          const session = data.session;
+          const token = session.access_token;
+      
+          localStorage.setItem('access_token', token); // Save token
+          setIsVerified(true);
+          setName(data.user.user_metadata.name);
+          setMessage('Login successful!');
         } catch (error) {
-            setMessage('Login error occurred');
+          setMessage('Login error occurred');
         }
-    };
+      };
 
     const handleVerifyEmail = async () => {
         try {

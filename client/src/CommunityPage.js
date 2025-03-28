@@ -62,10 +62,14 @@ function CommunityPage({ user, communityId, communityName }) {
         formData.append('image', selectedImage);
       }
 
-      const response = await axios.post('/api/posts', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      });
+      const token = localStorage.getItem('access_token');
 
+      const response = await axios.post('/api/posts', formData, {
+      headers: {
+          'Content-Type': 'multipart/form-data',
+          'Authorization': `Bearer ${token}` // Attach token
+      }
+    });
       // Add new post to the top of the list
       setPosts([response.data, ...posts]);
       

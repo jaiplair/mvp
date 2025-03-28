@@ -102,7 +102,21 @@ app.post('/api/communities', async (req, res) => {
     if (!authorization) return res.status(401).json({ error: 'Unauthorized' });
 
     try {
-        const { data: { user }, error: authError } = await supabase.auth.getUser(authorization.replace('Bearer ', ''));
+        //can only call auth.getUser if we provide users access token in the users access header
+        //const { data: { user }, error: authError } = await supabase.auth.getUser(authorization.replace('Bearer ', ''));
+        const createSupabaseClientWithAuth = (token) => {
+            return createClient(
+              process.env.SUPABASE_URL,
+              process.env.SUPABASE_SERVICE_ROLE_KEY,
+              {
+                global: {
+                  headers: {
+                    Authorization: `Bearer ${token}`
+                  }
+                }
+              }
+            );
+          };
         if (authError || !user) return res.status(401).json({ error: 'Invalid token' });
 
         const { data, error } = await supabase
@@ -146,14 +160,89 @@ app.get('/api/communities', async (req, res) => {
 // Create a new post
 app.post('/api/posts', upload.single('image'), async (req, res) => {
     const { communityId, text } = req.body;
-    
+    const token = req.headers.authorization?.split(' ')[1];
+
+    if (!token) {
+        return res.status(401).json({ error: 'Missing access token' });
+    }
+
+    const supabase = createSupabaseClientWithAuth(token);
     console.log('Post Creation Request:', {
         communityId,
         text,
         hasFile: !!req.file
     });
-
     try {
+        // Get the authenticated user
+        const { data: { user }, error: userError } = await supabase.auth.getUser();
+    
+        if (userError || !user) {
+          console.error('Auth error:', userError);
+          return res.status(401).json({ error: 'Authentication required' });
+        }
+    
+        let imageUrl = null;
+    
+        // Handle optional image upload
+        if (req.file) {
+          const fileExt = path.extname(req.file.originalname);
+          const fileName = `${uuidv4()}${fileExt}`;
+          const filePath = fileName;
+    
+          const { data: uploadData, error: uploadError } = await supabase.storage
+            .from('community-posts')
+            .upload(filePath, req.file.buffer, {
+              contentType: req.file.mimetype,
+              upsert: true,
+            });
+    
+          if (uploadError) {
+            console.error('Upload error:', uploadError);
+            return res.status(500).json({ error: 'Failed to upload image' });
+          }
+          const { data: { publicUrl } } = supabase.storage
+        .from('community-posts')
+        .getPublicUrl(filePath);
+
+      imageUrl = publicUrl;
+    }
+
+    // Insert post into DB
+    const { data: postData, error: insertError } = await supabase
+      .from('posts')
+      .insert({
+        community_id: communityId,
+        user_id: user.id,
+        text: text || '',
+        image_url: imageUrl,
+      })
+      .select()
+      .single();
+
+    if (insertError) {
+      console.error('Insert error:', insertError);
+      return res.status(500).json({ error: 'Failed to create post' });
+    }
+
+    // Return enriched post with user data from a view
+    const { data: postWithUser, error: viewError } = await supabase
+      .from('posts_with_users')
+      .select('*')
+      .eq('id', postData.id)
+      .single();
+
+    if (viewError) {
+      console.error('Fetch from view error:', viewError);
+      return res.status(500).json({ error: 'Failed to retrieve post details' });
+    }
+    res.status(201).json(postWithUser);
+  } catch (err) {
+    console.error('Unexpected error:', err);
+    res.status(500).json({ error: 'Unexpected server error', details: err.message });
+  }
+});
+
+    /*try {
         // Ensure bucket exists before any upload attempt
         await createCommunityPostsBucket();
 
@@ -212,7 +301,7 @@ app.post('/api/posts', upload.single('image'), async (req, res) => {
         console.error('Unexpected Error:', error);
         res.status(500).json({ error: 'Failed to create post', details: error.message });
     }
-});
+});*/
 
 // Updated route to fetch posts
 app.get('/api/posts/:communityId', async (req, res) => {
@@ -223,7 +312,7 @@ app.get('/api/posts/:communityId', async (req, res) => {
             .from('posts')
             .select(`
                 *,
-                users (name)
+                user:auth.users (name)
             `)
             .eq('community_id', communityId)
             .order('created_at', { ascending: false });
@@ -266,27 +355,35 @@ app.get('*', (req, res) => {
 const createCommunityPostsBucket = async () => {
     try {
         // First, try to get the bucket
-        const { data, error: getBucketError } = await supabase.storage.getBucket('community-posts');
+        const { data: existingBuckets, error: listError } = await supabase.storage.listBuckets();
 
         // If bucket doesn't exist, create it
-        if (getBucketError) {
-            console.log('Bucket does not exist. Creating now...');
-
-            const { data: createData, error: createError } = await supabase.storage.createBucket('community-posts', {
-                public: true,
-                allowedMimeTypes: ['image/jpeg', 'image/png', 'image/gif', 'image/webp'],
-                maxUploadFileSize: 5 * 1024 * 1024 // 5MB limit
-            });
-
-            if (createError) {
-                console.error('Failed to create bucket:', createError);
-                throw createError;
-            }
-
-            console.log('Community posts bucket created successfully');
-        } else {
-            console.log('Community posts bucket already exists');
+        if (listError) {
+            console.log('Error listing buckets: ', listError);
+            return;
         }
+        const bucketExists = existingBuckets.some(bucket => bucket.id ==="community-posts");
+        if(bucketExists){
+            console.log("bucket community posts already exists, skipping creation");
+            return;
+        }
+        //if we get to this step the bucket doesnt exist so we have to create one
+
+        const { data,error } = await supabase.storage.createBucket('community-posts', {
+            public: true,
+            allowedMimeTypes: ['image/jpeg', 'image/png', 'image/gif', 'image/webp'],
+            maxUploadFileSize: 5 * 1024 * 1024 // 5MB limit
+        });
+
+        if (error) {
+            console.error('Failed to create bucket:', error);
+            //throw error;
+            return;
+        }
+
+        console.log('Community posts bucket created successfully');
+         
+        
     } catch (err) {
         console.error('Unexpected error creating bucket:', err);
         throw err;
