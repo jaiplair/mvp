@@ -1,0 +1,114 @@
+.community-page {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 20px;
+    background-color: #f4f4f7;
+  }
+  
+  .community-header {
+    background-color: #0f2b46;
+    color: white;
+    padding: 15px;
+    border-radius: 5px;
+    margin-bottom: 20px;
+  }
+  
+  .post-creation-section {
+    background-color: white;
+    border-radius: 10px;
+    padding: 15px;
+    margin-bottom: 20px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+  }
+  
+  .post-form {
+    display: flex;
+    flex-direction: column;
+  }
+  
+  .post-textarea {
+    width: 100%;
+    min-height: 100px;
+    margin-bottom: 10px;
+    padding: 10px;
+    border: 1px solid #e2e8f0;
+    border-radius: 5px;
+    resize: vertical;
+  }
+  
+  .post-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  
+  .image-upload-label {
+    cursor: pointer;
+    color: #4a90e2;
+  }
+  
+  .post-submit-btn {
+    background-color: #0f2b46;
+    color: white;
+    border: none;
+    padding: 10px 15px;
+    border-radius: 5px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+  
+  .posts-section {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+  }
+  
+  .post-card {
+    background-color: white;
+    border-radius: 10px;
+    padding: 15px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+  }
+  
+  .post-header {
+    display: flex;
+    align-items: center;
+    margin-bottom: 10px;
+  }
+  
+  .post-author-avatar {
+    width: 40px;
+    height: 40px;
+    background-color: #4a90e2;
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 10px;
+  }
+  
+  .post-author-info {
+    display: flex;
+    flex-direction: column;
+  }
+  
+  .post-author-name {
+    font-weight: bold;
+  }
+  
+  .post-timestamp {
+    color: #718096;
+    font-size: 0.8em;
+  }
+  
+  .post-content p {
+    margin-bottom: 10px;
+  }
+  
+  .post-image {
+    max-width: 100%;
+    border-radius: 5px;
+    margin-top: 10px;
+  }

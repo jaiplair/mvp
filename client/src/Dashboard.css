@@ -1,151 +1,214 @@
-/* Import Google Fonts */
-@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap');
-
-body {
-    background-color: #ffe6f2; /* Soft pink background */
-    font-family: 'Poppins', sans-serif;
-    color: #5a1a5b;
+/* Reset and base styles */
+* {
     margin: 0;
     padding: 0;
+    box-sizing: border-box;
+  }
+  
+  .spelman-connect-dashboard {
     display: flex;
-    justify-content: center;
-    align-items: center;
     height: 100vh;
-}
-
-.App {
-    text-align: center;
-    background: white;
-    padding: 40px;
-    border-radius: 15px;
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-    width: 350px;
-}
-
-h1 {
-    font-size: 24px;
-    font-weight: 600;
-    color: #ff4d94; /* Bright pink */
-    margin-bottom: 20px;
-}
-
-/* ADDED: h2 heading style for "Verify Your Email" and dashboard headings */
-h2 {
-    font-size: 20px;
-    font-weight: 600;
-    color: #ff4d94; /* Bright pink */
-    margin-bottom: 15px;
-}
-
-/* ADDED: h3 heading style for "Hello, [name]!" in dashboard */
-h3 {
-    font-size: 18px;
-    font-weight: 600;
-    color: #ff4d94; /* Bright pink */
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+    background-color: #f4f4f7;
+  }
+  
+  /* Sidebar Styles */
+  .sidebar {
+    width: 250px;
+    background-color: #0f2b46;
+    color: white;
+    display: flex;
+    flex-direction: column;
+    padding: 20px;
+  }
+  
+  .user-profile {
+    display: flex;
+    align-items: center;
+    margin-bottom: 30px;
+  }
+  
+  .user-avatar {
+    width: 50px;
+    height: 50px;
+    background-color: #4a90e2;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    margin-right: 15px;
+  }
+  
+  .user-info {
+    display: flex;
+    flex-direction: column;
+  }
+  
+  .user-name {
+    font-weight: bold;
+  }
+  
+  .user-major {
+    color: #a0aec0;
+    font-size: 0.8em;
+  }
+  
+  .sidebar-nav {
+    flex-grow: 1;
+  }
+  
+  .nav-item {
+    display: flex;
+    align-items: center;
+    padding: 10px;
+    cursor: pointer;
+    border-radius: 5px;
     margin-bottom: 10px;
-}
-
-/* Form Styling */
-form {
+  }
+  
+  .nav-item.active {
+    background-color: #1e4472;
+  }
+  
+  .nav-item svg {
+    margin-right: 10px;
+  }
+  
+  .logout-section {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    padding: 10px;
+  }
+  
+  .logout-section svg {
+    margin-right: 10px;
+  }
+  
+  /* Main Content Styles */
+  .main-content {
+    flex-grow: 1;
+    padding: 30px;
+    overflow-y: auto;
+  }
+  
+  .header {
+    margin-bottom: 30px;
+  }
+  
+  .header h1 {
+    color: #0f2b46;
+    margin-bottom: 10px;
+  }
+  
+  .quick-actions {
+    display: flex;
+    gap: 15px;
+    margin-top: 20px;
+  }
+  
+  .btn {
+    padding: 10px 15px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+  }
+  
+  .btn-primary {
+    background-color: #0f2b46;
+    color: white;
+  }
+  
+  .btn-secondary {
+    background-color: #d1b45a;
+    color: white;
+  }
+  
+  .dashboard-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 30px;
+  }
+  
+  .section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+  }
+  
+  .section-header h2 {
+    color: #0f2b46;
+  }
+  
+  .view-all {
+    color: #4a90e2;
+    text-decoration: none;
+  }
+  
+  .community-card, .event-card {
+    background-color: white;
+    border-radius: 10px;
+    padding: 15px;
+    display: flex;
+    align-items: center;
+    margin-bottom: 15px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+  }
+  
+  .community-icon {
+    font-size: 2em;
+    margin-right: 15px;
+  }
+  
+  .community-details {
+    flex-grow: 1;
+  }
+  
+  .community-name {
+    font-weight: bold;
+    display: block;
+  }
+  
+  .community-members {
+    color: #718096;
+    font-size: 0.9em;
+  }
+  
+  .btn-small {
+    background-color: #0f2b46;
+    color: white;
+    border: none;
+    padding: 5px 10px;
+    border-radius: 5px;
+  }
+  
+  .event-card {
+    position: relative;
+  }
+  
+  .event-date {
     display: flex;
     flex-direction: column;
     align-items: center;
-}
-
-label {
-    font-size: 14px;
-    font-weight: 600;
-    margin: 10px 0 5px;
-}
-
-input {
-    width: 90%;
-    padding: 12px;
-    border: 2px solid #ff99c8;
-    border-radius: 10px;
-    font-size: 14px;
-    outline: none;
-    transition: all 0.3s ease-in-out;
-}
-
-input:focus {
-    border-color: #ff4d94;
-    box-shadow: 0 0 8px rgba(255, 77, 148, 0.5);
-}
-
-/* Button Styling */
-button {
-    background: linear-gradient(135deg, #ff66b2, #ff3385);
+    background-color: #d1b45a;
     color: white;
-    font-size: 16px;
+    padding: 10px;
+    border-radius: 5px;
+    margin-right: 15px;
+  }
+  
+  .event-details {
+    flex-grow: 1;
+  }
+  
+  .event-name {
     font-weight: bold;
-    padding: 12px 20px;
-    border: none;
-    border-radius: 20px;
-    cursor: pointer;
-    transition: all 0.3s ease-in-out;
-    margin-top: 15px;
-    width: 100%;
-}
-
-button:hover {
-    background: linear-gradient(135deg, #ff3385, #ff66b2);
-    transform: scale(1.05);
-}
-
-/* Message Styling */
-.success {
-    color: #00c851;
-    font-weight: bold;
-    margin-top: 15px;
-}
-
-.error {
-    color: #ff4444;
-    font-weight: bold;
-    margin-top: 15px;
-}
-
-/* ADDED: Generic message class for status messages */
-.message {
-    font-weight: bold;
-    margin-top: 15px;
-}
-
-/* ADDED: Dashboard Styles Section - Begin */
-/* Dashboard container */
-.dashboard {
-    text-align: center;
-}
-
-/* User greeting section with bottom border */
-.user-greeting {
-    margin-bottom: 20px;
-    padding-bottom: 15px;
-    border-bottom: 2px solid #ff99c8;
-}
-
-/* Styling for the email display in user greeting */
-.user-greeting p {
-    color: #5a1a5b;
-    font-size: 14px;
-}
-
-/* Main content area of dashboard */
-.dashboard-content {
-    min-height: 60px;
-    margin-bottom: 20px;
-    font-size: 14px;
-    color: #5a1a5b;
-}
-
-/* Special styling for logout button - red gradient */
-.logout-btn {
-    background: linear-gradient(135deg, #ff4444, #cc0000);
-}
-
-/* Hover effect for logout button */
-.logout-btn:hover {
-    background: linear-gradient(135deg, #cc0000, #ff4444);
-}
-/* ADDED: Dashboard Styles Section - End */
+    display: block;
+  }
+  
+  .event-time, .event-location {
+    color: #718096;
+    font-size: 0.9em;
+  }
