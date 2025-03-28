@@ -41,3 +41,10 @@ FROM
   posts p
 JOIN 
   auth.users u ON p.user_id = u.id;
+
+ALTER TABLE storage.buckets ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Allow public insert"
+ON storage.buckets
+FOR INSERT
+WITH CHECK (true);

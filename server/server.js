@@ -9,9 +9,9 @@ require('dotenv').config();
 const upload = multer({
     storage: multer.memoryStorage(),
     limits: {
-      fileSize: 5 * 1024 * 1024 // 5MB file size limit
+        fileSize: 5 * 1024 * 1024 // 5MB file size limit
     }
-  });
+});
 
 // Initialize Supabase client
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
@@ -94,237 +94,204 @@ app.post('/verify', async (req, res) => {
     }
 });
 
-
 // Create a new community
 app.post('/api/communities', async (req, res) => {
     const { name, description } = req.body;
     
-    const { data: { user } } = await supabase.auth.getUser();
-    try {
-      const { data, error } = await supabase
-        .from('communities')
-        .insert({
-          name,
-          description,
-          created_by: req.user ? req.user.id : null // Assuming you have authentication middleware
-        })
-        .select()
-        .single();
-  
-      if (error) throw error;
-  
-      res.status(201).json(data);
-    } catch (error) {
-      console.error('Error creating community:', error);
-      res.status(500).json({ error: 'Failed to create community' });
-    }
-  });
-  
-  // Get all communities with post counts
-  app.get('/api/communities', async (req, res) => {
-    try {
-      const { data, error } = await supabase
-        .from('communities')
-        .select(`
-          *,
-          posts_count:posts(count)
-        `);
-  
-      if (error) throw error;
-  
-      res.json(data);
-    } catch (error) {
-      console.error('Error fetching communities:', error);
-      res.status(500).json({ error: 'Failed to fetch communities' });
-    }
-  });
+    const { authorization } = req.headers;
+    if (!authorization) return res.status(401).json({ error: 'Unauthorized' });
 
-  app.post('/api/posts', upload.single('image'), async (req, res) => {
+    try {
+        const { data: { user }, error: authError } = await supabase.auth.getUser(authorization.replace('Bearer ', ''));
+        if (authError || !user) return res.status(401).json({ error: 'Invalid token' });
+
+        const { data, error } = await supabase
+            .from('communities')
+            .insert({
+                name,
+                description,
+                created_by: user.id
+            })
+            .select()
+            .single();
+
+        if (error) throw error;
+
+        res.status(201).json(data);
+    } catch (error) {
+        console.error('Error creating community:', error);
+        res.status(500).json({ error: 'Failed to create community' });
+    }
+});
+
+// Get all communities with post counts
+app.get('/api/communities', async (req, res) => {
+    try {
+        const { data, error } = await supabase
+            .from('communities')
+            .select(`
+                *,
+                posts_count:posts(count)
+            `);
+
+        if (error) throw error;
+
+        res.json(data);
+    } catch (error) {
+        console.error('Error fetching communities:', error);
+        res.status(500).json({ error: 'Failed to fetch communities' });
+    }
+});
+
+// Create a new post
+app.post('/api/posts', upload.single('image'), async (req, res) => {
     const { communityId, text } = req.body;
     
     console.log('Post Creation Request:', {
-      communityId,
-      text,
-      hasFile: !!req.file
+        communityId,
+        text,
+        hasFile: !!req.file
     });
-  
-    // Basic validation
-    if (!communityId) {
-      return res.status(400).json({ error: 'Community ID is required' });
-    }
-  
+
     try {
-      // Get the current authenticated user
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      if (!user) {
-        return res.status(401).json({ error: 'Authentication required' });
-      }
-  
-      let imageUrl = null;
-  
-      // Handle image upload to Supabase storage
-      if (req.file) {
-        const fileExt = path.extname(req.file.originalname);
-        const fileName = `${uuidv4()}${fileExt}`;
-        
-        console.log('Uploading file:', fileName);
-  
-        // Ensure the bucket exists before uploading
-        const { error: bucketError } = await supabase.storage.getBucket('community-posts');
-        if (bucketError) {
-          console.error('Bucket does not exist:', bucketError);
-          return res.status(500).json({ error: 'Storage bucket not configured' });
+        // Ensure bucket exists before any upload attempt
+        await createCommunityPostsBucket();
+
+        const { authorization } = req.headers;
+        if (!authorization) return res.status(401).json({ error: 'Unauthorized' });
+
+        const { data: { user }, error: authError } = await supabase.auth.getUser(authorization.replace('Bearer ', ''));
+        if (authError || !user) return res.status(401).json({ error: 'Invalid token' });
+
+        let imageUrl = null;
+
+        // Handle image upload to Supabase storage
+        if (req.file) {
+            const fileExt = path.extname(req.file.originalname);
+            const fileName = `${uuidv4()}${fileExt}`;
+
+            console.log('Uploading file:', fileName);
+
+            const { data: uploadData, error: uploadError } = await supabase.storage
+                .from('community-posts')
+                .upload(fileName, req.file.buffer, {
+                    contentType: req.file.mimetype,
+                    upsert: true
+                });
+
+            if (uploadError) {
+                console.error('Upload Error:', uploadError);
+                return res.status(500).json({ error: 'Failed to upload image', details: uploadError });
+            }
+
+            // Generate public URL
+            const { data: { publicUrl } } = supabase.storage
+                .from('community-posts')
+                .getPublicUrl(fileName);
+
+            imageUrl = publicUrl;
+            console.log('Image URL:', imageUrl);
         }
-  
-        const { data: uploadData, error: uploadError } = await supabase.storage
-          .from('community-posts')
-          .upload(fileName, req.file.buffer, {
-            contentType: req.file.mimetype,
-            upsert: true
-          });
-  
-        if (uploadError) {
-          console.error('Upload Error:', uploadError);
-          return res.status(500).json({ error: 'Failed to upload image', details: uploadError });
-        }
-  
-        // Generate public URL
-        const { data: { publicUrl } } = supabase.storage
-          .from('community-posts')
-          .getPublicUrl(fileName);
-  
-        imageUrl = publicUrl;
-        console.log('Image URL:', imageUrl);
-      }
-  
-      // Insert post into database
-      const { data, error } = await supabase
-        .from('posts')
-        .insert({
-          community_id: communityId,
-          user_id: user.id,
-          text: text || '',
-          image_url: imageUrl
-        })
-        .select()
-        .single();
-  
-      if (error) {
-        console.error('Database Insertion Error:', error);
-        return res.status(500).json({ error: 'Failed to create post', details: error });
-      }
-  
-      // Fetch the post with user details
-      const { data: postWithUser, error: fetchError } = await supabase
-        .from('posts_with_users')
-        .select('*')
-        .eq('id', data.id)
-        .single();
-  
-      if (fetchError) {
-        console.error('Fetch User Details Error:', fetchError);
-        return res.status(500).json({ error: 'Failed to retrieve post details', details: fetchError });
-      }
-  
-      res.status(201).json(postWithUser);
+
+        // Insert post into database
+        const { data, error } = await supabase
+            .from('posts')
+            .insert({
+                community_id: communityId,
+                text,
+                user_id: user.id,
+                image_url: imageUrl
+            })
+            .select()
+            .single();
+
+        if (error) throw error;
+
+        res.status(201).json(data);
     } catch (error) {
-      console.error('Unexpected Error:', error);
-      res.status(500).json({ error: 'Unexpected error occurred', details: error.message });
+        console.error('Unexpected Error:', error);
+        res.status(500).json({ error: 'Failed to create post', details: error.message });
     }
-  });
-  
-  // Updated route to fetch posts
-  app.get('/api/posts/:communityId', async (req, res) => {
+});
+
+// Updated route to fetch posts
+app.get('/api/posts/:communityId', async (req, res) => {
     const { communityId } = req.params;
-  
+
     try {
-      const { data, error } = await supabase
-        .from('posts_with_users')
-        .select('*')
-        .eq('community_id', communityId)
-        .order('created_at', { ascending: false });
-  
-      if (error) throw error;
-  
-      res.json(data);
+        const { data, error } = await supabase
+            .from('posts')
+            .select(`
+                *,
+                users (name)
+            `)
+            .eq('community_id', communityId)
+            .order('created_at', { ascending: false });
+
+        if (error) throw error;
+
+        res.json(data);
     } catch (error) {
-      console.error('Error fetching community posts:', error);
-      res.status(500).json({ error: 'Failed to fetch posts', details: error });
+        console.error('Error fetching community posts:', error);
+        res.status(500).json({ error: 'Failed to fetch posts' });
     }
-  });
-  
+});
+
 // GET single community details
 app.get('/api/communities/:communityId', async (req, res) => {
     const { communityId } = req.params;
-  
-    try {
-      const { data, error } = await supabase
-        .from('communities')
-        .select('*')
-        .eq('id', communityId)
-        .single();
-  
-      if (error) throw error;
-  
-      res.json(data);
-    } catch (error) {
-      console.error('Error fetching community details:', error);
-      res.status(404).json({ error: 'Community not found' });
-    }
-  });
-  
-  // GET posts for a specific community
-  app.get('/api/posts/:communityId', async (req, res) => {
-    const { communityId } = req.params;
-  
-    try {
-      const { data, error } = await supabase
-        .from('posts')
-        .select(`
-          *,
-          users (name)
-        `)
-        .eq('community_id', communityId)
-        .order('created_at', { ascending: false });
-  
-      if (error) throw error;
-  
-      res.json(data);
-    } catch (error) {
-      console.error('Error fetching community posts:', error);
-      res.status(500).json({ error: 'Failed to fetch posts' });
-    }
-  });
 
-  // In your server.js or a separate setup script
-const createCommunityPostsBucket = async () => {
     try {
-      // Create the bucket
-      const { data, error } = await supabase.storage.createBucket('community-posts', {
-        public: true,
-        allowedMimeTypes: ['image/jpeg', 'image/png', 'image/gif'],
-        maxUploadFileSize: 5 * 1024 * 1024 // 5MB
-      });
-  
-      if (error) {
-        console.error('Error creating bucket:', error);
-        return;
-      }
-  
-      console.log('Community posts bucket created successfully');
-    } catch (err) {
-      console.error('Unexpected error creating bucket:', err);
+        const { data, error } = await supabase
+            .from('communities')
+            .select('*')
+            .eq('id', communityId)
+            .single();
+
+        if (error) throw error;
+
+        res.json(data);
+    } catch (error) {
+        console.error('Error fetching community details:', error);
+        res.status(404).json({ error: 'Community not found' });
     }
-  };
-  
-  // Call this function during your app initialization
-  createCommunityPostsBucket();
+});
 
 // Fallback route to serve React frontend for any unmatched routes
 app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, '../client/build/index.html'));
 });
+
+// Create Community Posts Bucket if it doesn't exist
+const createCommunityPostsBucket = async () => {
+    try {
+        // First, try to get the bucket
+        const { data, error: getBucketError } = await supabase.storage.getBucket('community-posts');
+
+        // If bucket doesn't exist, create it
+        if (getBucketError) {
+            console.log('Bucket does not exist. Creating now...');
+
+            const { data: createData, error: createError } = await supabase.storage.createBucket('community-posts', {
+                public: true,
+                allowedMimeTypes: ['image/jpeg', 'image/png', 'image/gif', 'image/webp'],
+                maxUploadFileSize: 5 * 1024 * 1024 // 5MB limit
+            });
+
+            if (createError) {
+                console.error('Failed to create bucket:', createError);
+                throw createError;
+            }
+
+            console.log('Community posts bucket created successfully');
+        } else {
+            console.log('Community posts bucket already exists');
+        }
+    } catch (err) {
+        console.error('Unexpected error creating bucket:', err);
+        throw err;
+    }
+};
 
 // Start the server
 const PORT = process.env.PORT || 5000;
@@ -332,7 +299,4 @@ app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
 });
 
-
-
- // Export the updated app
- module.exports = app;
+module.exports = app;
