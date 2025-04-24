@@ -41,3 +41,12 @@ FROM
   posts p
 JOIN 
   auth.users u ON p.user_id = u.id;
+
+CREATE POLICY "Allow authenticated uploads" 
+ON storage.objects 
+FOR INSERT 
+TO authenticated 
+WITH CHECK (
+  bucket_id = 'community-posts' AND
+  auth.uid() IS NOT NULL
+);

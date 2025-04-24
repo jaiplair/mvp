@@ -170,14 +170,13 @@ app.post('/api/communities', async (req, res) => {
         
         console.log('Uploading file:', fileName);
   
-        // Ensure the bucket exists before uploading
-        const { error: bucketError } = await supabase.storage.getBucket('community-posts');
-        if (bucketError) {
-          console.error('Bucket does not exist:', bucketError);
-          return res.status(500).json({ error: 'Storage bucket not configured' });
-        }
-  
-        const { data: uploadData, error: uploadError } = await supabase.storage
+        // Create a separate service role client to ensure we bypass RLS
+        const serviceRoleSupabase = createClient(
+          process.env.SUPABASE_URL,
+          process.env.SUPABASE_SERVICE_ROLE_KEY
+        );
+        
+        const { data: uploadData, error: uploadError } = await serviceRoleSupabase.storage
           .from('community-posts')
           .upload(fileName, req.file.buffer, {
             contentType: req.file.mimetype,
@@ -190,7 +189,7 @@ app.post('/api/communities', async (req, res) => {
         }
   
         // Generate public URL
-        const { data: { publicUrl } } = supabase.storage
+        const { data: { publicUrl } } = serviceRoleSupabase.storage
           .from('community-posts')
           .getPublicUrl(fileName);
   
@@ -233,6 +232,7 @@ app.post('/api/communities', async (req, res) => {
       res.status(500).json({ error: 'Unexpected error occurred', details: error.message });
     }
   });
+  
   
   // Updated route to fetch posts
   app.get('/api/posts/:communityId', async (req, res) => {
@@ -297,29 +297,28 @@ app.get('/api/communities/:communityId', async (req, res) => {
     }
   });
 
-  // In your server.js or a separate setup script
-const createCommunityPostsBucket = async () => {
+  app.delete('/api/posts/:postId', async (req, res) => {
+    const { postId } = req.params;
+  
     try {
-      // Create the bucket
-      const { data, error } = await supabase.storage.createBucket('community-posts', {
-        public: true,
-        allowedMimeTypes: ['image/jpeg', 'image/png', 'image/gif'],
-        maxUploadFileSize: 5 * 1024 * 1024 // 5MB
-      });
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return res.status(401).json({ error: 'Unauthorized' });
   
-      if (error) {
-        console.error('Error creating bucket:', error);
-        return;
-      }
+      const { error } = await supabase
+        .from('posts')
+        .delete()
+        .eq('id', postId)
+        .eq('user_id', user.id); // Ensure only the post author can delete
   
-      console.log('Community posts bucket created successfully');
-    } catch (err) {
-      console.error('Unexpected error creating bucket:', err);
+      if (error) throw error;
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Delete Error:', error);
+      res.status(500).json({ error: 'Failed to delete post' });
     }
-  };
+  });
   
-  // Call this function during your app initialization
-  createCommunityPostsBucket();
+
 
 // Fallback route to serve React frontend for any unmatched routes
 app.get('*', (req, res) => {

@@ -20,6 +20,7 @@ function CommunityPage({ user, communityId, communityName }) {
 
         // Fetch posts for this community
         const postsResponse = await axios.get(`/api/posts/${communityId}`);
+        console.log('Posts data:', postsResponse.data); // Debug: Log posts data structure
         setPosts(postsResponse.data);
       } catch (err) {
         console.error('Error fetching community details:', err);
@@ -29,6 +30,19 @@ function CommunityPage({ user, communityId, communityName }) {
 
     fetchCommunityDetails();
   }, [communityId]);
+
+  const handleDeletePost = async (postId) => {
+    console.log("u pressed me baby")
+    if (!window.confirm('Are you sure you want to delete this post?')) return;
+  
+    try {
+      await axios.delete(`/api/posts/${postId}`);
+      setPosts(posts.filter(post => post.id !== postId));
+    } catch (err) {
+      console.error('Delete failed:', err);
+      alert('Failed to delete post.');
+    }
+  };
 
   const handleImageUpload = (event) => {
     const file = event.target.files[0];
@@ -83,36 +97,6 @@ function CommunityPage({ user, communityId, communityName }) {
     }
   };
 
-  // In the posts rendering section, update to use the new structure
-  {posts.map((post) => (
-    <div key={post.id} className="post-card">
-      <div className="post-header">
-        <div className="post-author-avatar">
-          {post.user_name ? post.user_name.charAt(0) : 'U'}
-        </div>
-        <div className="post-author-info">
-          <span className="post-author-name">
-            {post.user_name || 'Anonymous User'}
-          </span>
-          <span className="post-timestamp">
-            {new Date(post.created_at).toLocaleString()}
-          </span>
-        </div>
-      </div>
-      <div className="post-content">
-        <p>{post.text}</p>
-        {post.image_url && (
-          <img 
-            src={post.image_url} 
-            alt="Post" 
-            className="post-image" 
-            onClick={() => window.open(post.image_url, '_blank')}
-          />
-        )}
-      </div>
-    </div>
-  ))}
-
   const removeSelectedImage = () => {
     setSelectedImage(null);
   };
@@ -137,6 +121,14 @@ function CommunityPage({ user, communityId, communityName }) {
       </div>
     );
   }
+
+  // Helper function to debug the user data structure
+  const debugUserMatch = (post) => {
+    console.log('Current user:', user?.id);
+    console.log('Post user_id:', post.user_id);
+    console.log('Match?', user?.id === post.user_id);
+    return user?.id === post.user_id;
+  };
 
   return (
     <div className="community-page">
@@ -198,16 +190,31 @@ function CommunityPage({ user, communityId, communityName }) {
             <div key={post.id} className="post-card">
               <div className="post-header">
                 <div className="post-author-avatar">
-                  {post.users?.name ? post.users.name.charAt(0) : 'U'}
+                  {/* Use the appropriate user name property based on your API response */}
+                  {(post.user_name || post.users?.name || 'U').charAt(0)}
                 </div>
                 <div className="post-author-info">
                   <span className="post-author-name">
-                    {post.users?.name || 'Anonymous User'}
+                    {post.user_name || post.users?.name || 'Anonymous User'}
                   </span>
                   <span className="post-timestamp">
                     {new Date(post.created_at).toLocaleString()}
                   </span>
+                  <button onClick={() => handleDeletePost(post.id)} 
+                    className="delete-btn" 
+                    title="Delete post" >Delete Post 🗑️</button>
+                  
                 </div>
+                {/* Make sure the user ID check is correct and visible for debugging */}
+                {user && user.id === post.user_id && (
+                  <button 
+                    onClick={() => handleDeletePost(post.id)} 
+                    className="delete-btn" 
+                    title="Delete post"
+                  >
+                    delete me 🗑️
+                  </button>
+                )}
               </div>
               <div className="post-content">
                 <p>{post.text}</p>
